@@ -189,7 +189,7 @@ bash -c "nsenter $nsenter_parameters -- chroot /host conntrack -E -o timestamp >
 echo
 echo "    @@ STARTING HOST TCPDUMPS" 
 for i in ${host_interfaces[@]}; do
-  tcpdump -nn -i ${i} -v -w $DESTINATION_FOLDER/tcpdump_host_${HOSTNAME}_${i}_$(date +%d_%m_%Y-%H_%M_%S-%Z).pcap $TCPDUMP_FILTER & 
+  tcpdump -nn -i ${i} -v -C 1000 -W 10 -Z root -w $DESTINATION_FOLDER/tcpdump_host_${HOSTNAME}_${i}_$(date +%d_%m_%Y-%H_%M_%S-%Z).pcap $TCPDUMP_FILTER & 
 done
 
 # create one tcpdump output per interface
@@ -197,7 +197,7 @@ echo
 echo "    @@ STARTING POD TCPDUMPS"   
 for i in ${pod_interfaces[@]}; do
   # See https://access.redhat.com/solutions/4569211
-  bash -c "nsenter $nsenter_parameters -- tcpdump -nn -i ${i} -v -w $DESTINATION_FOLDER/tcpdump_pod_${PODNAME}_${i}_$(date +%d_%m_%Y-%H_%M_%S-%Z).pcap $TCPDUMP_FILTER" &
+  bash -c "nsenter $nsenter_parameters -- tcpdump -nn -i ${i} -v -C 1000 -W 10 -Z root -w $DESTINATION_FOLDER/tcpdump_pod_${PODNAME}_${i}_$(date +%d_%m_%Y-%H_%M_%S-%Z).pcap $TCPDUMP_FILTER" &
 done
 
 # wait until CTRL+C
