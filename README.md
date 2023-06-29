@@ -2,6 +2,10 @@ The following was created by merging:
 - https://github.com/acancell-redhat/ocp_tools/blob/alt-params/parallel_conntrack_tcpdump/INSTRUCTIONS.txt
 - https://gitlab.cee.redhat.com/palonsor/monitorsh-image/-/blob/main/monitor.sh
 - extra checks (see "CUSTOMIZATION" comments inside the script)
+  - pod yaml
+  - pod veth name
+  - netfilter files on both node and pod
+  - iptable on both node and pod
 
 Requirements:
 

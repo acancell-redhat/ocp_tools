@@ -344,6 +344,28 @@ while [ "$ITERATIONS" != 0 ]; do
         bash -c "nsenter $nsenter_parameters -- chroot /host cat /proc/sys/net/netfilter/$f >> $DESTINATION_FOLDER/$PODNAME-network_stats_$now/$f" &
 
     done
+    # CUSTOMIZATION - dump all iptables
+    # we collect less iterations here (one each 10 seconds), because the dump locks iptables
+    if [[ $(( $(date +%-S) % 10 )) == 0 ]]; then
+      for t in filter nat mangle raw security; do
+          # on node
+          if [ ! -e $DESTINATION_FOLDER/$HOSTNAME-network_stats_$now/iptables-$t ]; then
+              echo "===== $(date +"%F %T.%N%:z (%Z)") =====" > "$DESTINATION_FOLDER/$HOSTNAME-network_stats_$now/iptables-$t"
+          else
+              echo "===== $(date +"%F %T.%N%:z (%Z)") =====" >> "$DESTINATION_FOLDER/$HOSTNAME-network_stats_$now/iptables-$t"
+          fi
+          chroot /host iptables -v -L -t $t >> "$DESTINATION_FOLDER/$HOSTNAME-network_stats_$now/iptables-$t"
+
+          # on pod
+          if [ ! -e $DESTINATION_FOLDER/$PODNAME-network_stats_$now/iptables-$t ]; then
+              echo "===== $(date +"%F %T.%N%:z (%Z)") =====" > "$DESTINATION_FOLDER/$PODNAME-network_stats_$now/iptables-$t"
+          else
+              echo "===== $(date +"%F %T.%N%:z (%Z)") =====" >> "$DESTINATION_FOLDER/$PODNAME-network_stats_$now/iptables-$t"
+          fi
+          bash -c "nsenter $nsenter_parameters -- chroot /host iptables -v -L -t $t >> $DESTINATION_FOLDER/$PODNAME-network_stats_$now/iptables-$t" &
+      done
+    fi
+    # end of CUSTOMIZATION
     if [ "$ITERATIONS" -gt 0 ]; then let ITERATIONS-=1; fi
 done
 
