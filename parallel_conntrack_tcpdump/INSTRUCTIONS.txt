@@ -178,11 +178,17 @@ echo
 echo "@@ STARTING PARALLEL CONNTRACKS AND TCPDUMPS . Use CTRL+C to end the capture"
 
 echo
-echo "    @@ STARTING HOST CONNTRACK"   
+echo "    @@ STARTING HOST CONNTRACK"
+# CUSTOMIZATION - get initial conntrack status
+chroot /host conntrack -L > $DESTINATION_FOLDER/conntrack_host_${HOSTNAME}_$(date +%d_%m_%Y-%H_%M_%S-%Z)-initial_state.txt &
+# end of CUSTOMIZATION
 chroot /host conntrack -E -o timestamp > $DESTINATION_FOLDER/conntrack_host_${HOSTNAME}_$(date +%d_%m_%Y-%H_%M_%S-%Z).txt &
 
 echo
-echo "    @@ STARTING POD CONNTRACK"   
+echo "    @@ STARTING POD CONNTRACK"
+# CUSTOMIZATION - get initial conntrack status
+bash -c "nsenter $nsenter_parameters -- chroot /host conntrack -L > $DESTINATION_FOLDER/conntrack_pod_${PODNAME}_$(date +%d_%m_%Y-%H_%M_%S-%Z)-initial_state.txt" &
+# end of CUSTOMIZATION
 bash -c "nsenter $nsenter_parameters -- chroot /host conntrack -E -o timestamp > $DESTINATION_FOLDER/conntrack_pod_${PODNAME}_$(date +%d_%m_%Y-%H_%M_%S-%Z).txt" &
 
 # create one tcpdump output per interface
