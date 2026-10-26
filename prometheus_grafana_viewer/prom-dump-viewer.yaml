@@ -1,0 +1,96 @@
+# ==============================================================================
+# PURPOSE:
+#   Local viewer stack to analyze Prometheus TSDB dumps captured per:
+#   https://access.redhat.com/solutions/5482971
+#
+# RECOMMENDED FILENAME: prom-dump-viewer.yaml
+# (Alternatively, name it 'compose.yaml' to omit the '-f' parameter)
+#
+# QUICK START / WORKFLOW INSTRUCTIONS:
+#
+# 1. Prepare directories & unpack Prometheus dump:
+#      mkdir -p ./prometheus-data ./grafana-data
+#      tar -xzf prom_XXX.tar.gz -C ./prometheus-data/
+#
+# 2. Start the stack:
+#      podman compose -f prom-dump-viewer.yaml up -d
+#
+# 3. View service logs:
+#      podman compose -f prom-dump-viewer.yaml logs -f prometheus
+#      podman compose -f prom-dump-viewer.yaml logs -f grafana
+#
+# 4. Access Grafana:
+#      - Open http://localhost:3000 (user: admin / pass: admin)
+#      - Prometheus is pre-configured and set as default.
+#      - Open "Explore" or import/create a dashboard.
+#      - IMPORTANT: Adjust the top-right time picker to cover your dump's historical range.
+#
+# 5. Tear down:
+#      podman compose -f prom-dump-viewer.yaml down
+# ==============================================================================
+
+# Required: By default, podman-compose bundles all containers into a single Pod,
+# which forbids container-specific --userns settings. Setting in_pod: false runs
+# them as standalone containers on a bridge network, allowing Prometheus (UID 65534)
+# and Grafana (UID 472) to each have their own user namespace mappings.
+x-podman:
+  in_pod: false
+
+services:
+  prometheus:
+    image: quay.io/prometheus/prometheus:v3
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus-data:/prometheus:Z
+    userns_mode: "keep-id:uid=65534,gid=65534"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=100d"
+      - "--log.level=debug"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  grafana:
+    image: quay.io/ceph/grafana:13.2
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_DATE_FORMATS_DEFAULT_TIMEZONE=utc
+      - GF_LOG_LEVEL=debug
+      - GF_PATHS_PROVISIONING=/tmp/provisioning
+    # Self-provisions the Prometheus datasource inside /tmp without needing a host-mounted config file
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mkdir -p /tmp/provisioning/datasources
+        cat <<'EOF' > /tmp/provisioning/datasources/prometheus.yaml
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            access: proxy
+            url: http://prometheus:9090
+            isDefault: true
+            editable: true
+        EOF
+        exec /run.sh
+    volumes:
+      - ./grafana-data:/var/lib/grafana:Z
+    userns_mode: "keep-id:uid=472,gid=472"
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
